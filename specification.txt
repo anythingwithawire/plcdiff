@@ -1,0 +1,1389 @@
+RevCat Software Requirements Specification
+Document Version: 1.0
+Date: 11 December 2024
+Status: Draft for Review
+Classification: Commercial-in-Confidence
+
+Document Control
+VersionDateAuthorChanges1.011/12/2024InitialFirst draft
+
+Table of Contents
+
+Introduction
+Product Overview
+User Personas and Use Cases
+Functional Requirements
+Technical Architecture
+Data Models
+User Interface Specification
+Command Line Interface
+PDF Export Specification
+Performance Requirements
+Security Considerations
+Development Roadmap
+Future Considerations
+Appendices
+
+
+1. Introduction
+1.1 Purpose
+This Software Requirements Specification (SRS) defines the functional and non-functional requirements for RevCat, a commercial software application for version control and comparison of Programmable Logic Controller (PLC) project files.
+1.2 Scope
+RevCat provides engineers with the ability to:
+
+Import and parse PLC project exports from supported platforms
+Compare any two versions of a project or routine
+Visualise differences graphically for Ladder Logic, Function Block Diagram, and Structured Text
+Generate professional PDF reports of comparisons
+Process large batches of comparisons via command line interface
+
+1.3 Definitions and Acronyms
+TermDefinitionL5XRockwell Automation XML export format for Studio 5000/Logix projectsXEFSchneider Electric XML export format for EcoStruxure/Unity projectsLDLadder Diagram (IEC 61131-3)FBDFunction Block Diagram (IEC 61131-3)STStructured Text (IEC 61131-3)RungA single horizontal logic element in Ladder DiagramNetworkA discrete functional block arrangement in FBDRoutineA named block of code in any languageTagA named variable/data element in a PLC programAOIAdd-On Instruction (Rockwell custom function blocks)DFBDerived Function Block (Schneider custom function blocks)
+1.4 References
+DocumentDescriptionIEC 61131-3:2013Programmable controllers - Part 3: Programming languagesRockwell L5X SchemaXML schema for Logix Designer exportsSchneider XEF SchemaXML schema for EcoStruxure Control Expert exports
+
+2. Product Overview
+2.1 Product Vision
+RevCat enables control systems engineers to track changes in PLC programs with the same rigour applied to enterprise software development, while presenting differences in domain-appropriate visual formats that align with how engineers actually read and understand PLC code.
+2.2 Product Objectives
+IDObjectiveSuccess MetricOBJ-01Reduce time to identify program changes<5 minutes for typical project comparisonOBJ-02Improve change documentation qualityPDF reports suitable for MOC/safety documentationOBJ-03Enable batch processing for large sites100+ file comparisons in single batch runOBJ-04Support multiple PLC platformsInitial: Rockwell + SchneiderOBJ-05Professional commercial qualityUI/UX comparable to established industrial software
+2.3 Target Market
+
+Control systems integrators
+Mining and resources operations (asset owners)
+Oil & gas operations
+Manufacturing facilities with in-house engineering
+Functional safety consultancies (MOC documentation)
+
+2.4 Competitive Positioning
+FeatureOctoplantAssetCentreMDT AutoSaveRevCatVisual ladder diff✓LimitedLimited✓FBD visual diff✓✗✗✓ST diff with highlighting✓✗✗✓Batch CLI processing✗✗✗✓PDF export✓✓✓✓Rockwell support✓✓✓✓Schneider support✓✗Limited✓Pricing modelEnterpriseEnterpriseEnterpriseSubscription
+2.5 Supported Platforms
+2.5.1 Phase 1 (Initial Release)
+PlatformFile FormatLanguages SupportedRockwell Studio 5000 / Logix DesignerL5X (XML export)LD, FBD, STSchneider EcoStruxure Control Expert / Unity ProXEF (XML export)LD, FBD, ST
+2.5.2 Future Phases
+
+Siemens TIA Portal (export formats TBD)
+ABB Automation Builder
+Schneider Machine Expert (Codesys-based)
+Beckhoff TwinCAT
+
+
+3. User Personas and Use Cases
+3.1 User Personas
+3.1.1 Persona: Site Control Systems Engineer
+Name: Sarah
+Role: Senior Control Systems Engineer, Iron Ore Mine
+Experience: 12 years
+Context: Responsible for maintaining PLC programs across 40+ controllers. Needs to track changes made by contractors and internal staff. Must document all changes for safety and operational reasons.
+Goals:
+
+Quickly identify what changed between site visits
+Generate documentation for Management of Change (MOC) processes
+Verify contractor work matches specifications
+
+Pain Points:
+
+Current process involves manually comparing printouts
+Difficult to explain code changes to non-technical stakeholders
+No audit trail of who changed what
+
+3.1.2 Persona: Systems Integrator
+Name: Marcus
+Role: Principal Engineer, Control Systems Integrator
+Experience: 18 years
+Context: Manages multiple concurrent projects across different clients. Uses both Rockwell and Schneider platforms. Needs to track internal development changes and compare against client baselines.
+Goals:
+
+Maintain version control across development team
+Generate professional handover documentation
+Compare development versions against client's existing code
+
+Pain Points:
+
+Different workflows for each PLC platform
+Time-consuming to produce comparison documentation
+Batch comparisons for large handovers are manual and error-prone
+
+3.1.3 Persona: Functional Safety Engineer
+Name: Priya
+Role: TÜV-certified Functional Safety Engineer
+Experience: 8 years
+Context: Performs safety audits and validation of SIS/SIL-rated systems. Must verify that safety logic matches approved designs and document any deviations.
+Goals:
+
+Verify production code matches validated baseline
+Document differences for safety audit trails
+Generate evidence for functional safety assessments
+
+Pain Points:
+
+Manual comparison is time-consuming and error-prone
+Existing tools don't provide sufficient detail for safety documentation
+Difficult to demonstrate to auditors that comprehensive comparison was performed
+
+3.2 Use Cases
+UC-01: Compare Two Project Versions (GUI)
+Actor: Any user
+Precondition: User has two XML export files from the same PLC platform
+Trigger: User launches RevCat and selects comparison mode
+Main Flow:
+
+User selects "New Comparison" from main menu
+User selects source file (Version A / baseline)
+User selects target file (Version B / modified)
+System validates both files are compatible (same platform, parseable)
+System parses both files and builds internal representation
+System performs diff analysis
+System displays summary of changes (counts by category)
+User navigates to specific changes of interest
+System displays graphical diff for selected item
+
+Alternative Flows:
+
+4a. Files incompatible: System displays error with reason
+5a. Parse error: System displays error with location in file
+
+Postcondition: User can view all differences between the two versions
+UC-02: Export Comparison to PDF (GUI)
+Actor: Any user
+Precondition: Comparison has been performed (UC-01 complete)
+Trigger: User selects "Export to PDF"
+Main Flow:
+
+User selects "Export to PDF" from menu or toolbar
+System displays export options dialog
+User configures export options (scope, detail level, metadata)
+User selects output location
+System generates PDF report
+System displays success message with file location
+(Optional) System opens PDF in default viewer
+
+Postcondition: PDF report saved to specified location
+UC-03: Batch Comparison (CLI)
+Actor: Power user / automated system
+Precondition: User has prepared batch input file or directory structure
+Trigger: User executes RevCat from command line with batch parameters
+Main Flow:
+
+User executes: revcat batch --input manifest.json --output ./reports/
+System reads batch manifest file
+System validates all input files exist and are accessible
+For each comparison in manifest:
+a. System parses source and target files
+b. System performs diff analysis
+c. System generates PDF report
+d. System logs result (success/failure)
+System generates batch summary report
+System exits with appropriate return code
+
+Alternative Flows:
+
+3a. Missing files: System logs error, continues with remaining comparisons
+4a. Parse error: System logs error for that comparison, continues
+
+Postcondition: PDF reports generated for all valid comparisons, batch summary available
+UC-04: Single Comparison (CLI)
+Actor: Power user / automated system
+Precondition: User has two XML export files
+Trigger: User executes RevCat from command line
+Main Flow:
+
+User executes: revcat compare --source v1.L5X --target v2.L5X --output report.pdf
+System parses source and target files
+System performs diff analysis
+System generates PDF report
+System exits with return code 0
+
+Postcondition: PDF report generated
+UC-05: View Tag Database Changes
+Actor: Any user
+Precondition: Comparison loaded
+Trigger: User navigates to Tag Database section
+Main Flow:
+
+User selects "Tag Database" from navigation tree
+System displays summary of tag changes (added, removed, modified)
+User selects specific tag for detail view
+System displays tag properties comparison (data type, description, value, etc.)
+
+Postcondition: User can see all tag database differences
+UC-06: View Routine Changes (Ladder)
+Actor: Any user
+Precondition: Comparison loaded, routine contains Ladder logic
+Trigger: User navigates to specific routine
+Main Flow:
+
+User selects routine from navigation tree
+System identifies routine language as Ladder
+System displays rung-by-rung comparison view
+Each rung is marked as: Unchanged, Added, Removed, or Modified
+For modified rungs, system highlights the specific elements that changed
+User can scroll through entire routine
+
+Postcondition: User can see all rung-level differences with visual indicators
+UC-07: View Routine Changes (FBD)
+Actor: Any user
+Precondition: Comparison loaded, routine contains FBD logic
+Trigger: User navigates to specific routine
+Main Flow:
+
+User selects routine from navigation tree
+System identifies routine language as FBD
+System displays network-by-network comparison view
+Each network is marked as: Unchanged, Added, Removed, or Modified
+For modified networks, system highlights changed blocks and connections
+User can navigate between networks
+
+Postcondition: User can see all network-level differences with visual indicators
+UC-08: View Routine Changes (Structured Text)
+Actor: Any user
+Precondition: Comparison loaded, routine contains ST code
+Trigger: User navigates to specific routine
+Main Flow:
+
+User selects routine from navigation tree
+System identifies routine language as ST
+System displays side-by-side text comparison
+Line-level differences are highlighted
+Within changed lines, specific tokens are highlighted (variables, operators, values)
+User can scroll through synchronised views
+
+Postcondition: User can see all ST differences with token-level highlighting
+
+4. Functional Requirements
+4.1 File Import and Parsing
+FR-010: L5X File Import
+Priority: Must Have
+Description: System shall import and parse Rockwell L5X XML export files.
+Acceptance Criteria:
+
+System accepts L5X files from Studio 5000 v20 through v36
+System extracts all Programs, Routines, and Tasks
+System extracts all Tags (controller-scope and program-scope)
+System extracts all Add-On Instructions
+System extracts all routine content (LD, FBD, ST)
+System handles files up to 500MB in size
+System reports parse errors with line number and description
+
+FR-011: XEF File Import
+Priority: Must Have
+Description: System shall import and parse Schneider XEF XML export files.
+Acceptance Criteria:
+
+System accepts XEF files from Unity Pro v11+ and Control Expert v14+
+System extracts all Program Units and Sections
+System extracts all Variables (elementary and derived)
+System extracts all Derived Function Blocks (DFBs)
+System extracts all section content (LD, FBD, ST)
+System handles files up to 500MB in size
+System reports parse errors with line number and description
+
+FR-012: File Validation
+Priority: Must Have
+Description: System shall validate input files before processing.
+Acceptance Criteria:
+
+System verifies file is well-formed XML
+System identifies platform type (Rockwell/Schneider) from file content
+System verifies both files in a comparison are same platform type
+System provides meaningful error messages for validation failures
+
+4.2 Diff Analysis
+FR-020: Program Structure Diff
+Priority: Must Have
+Description: System shall identify structural changes in program organisation.
+Acceptance Criteria:
+
+System identifies added programs/units
+System identifies removed programs/units
+System identifies renamed programs/units (where detectable)
+System identifies added/removed routines/sections
+System identifies added/removed tasks (Rockwell)
+
+FR-021: Routine Content Diff - Ladder
+Priority: Must Have
+Description: System shall perform rung-level diff analysis on Ladder routines.
+Acceptance Criteria:
+
+System identifies added rungs with position
+System identifies removed rungs with original position
+System identifies modified rungs
+System identifies moved rungs (position change only)
+System identifies rung comment changes
+For modified rungs, system identifies changed elements:
+
+Instructions (added/removed/changed)
+Operands (tag references changed)
+Branch structure changes
+
+
+
+FR-022: Routine Content Diff - FBD
+Priority: Must Have
+Description: System shall perform network-level diff analysis on FBD routines.
+Acceptance Criteria:
+
+System identifies added networks with position
+System identifies removed networks with original position
+System identifies modified networks
+For modified networks, system identifies:
+
+Added/removed function blocks
+Changed block parameters
+Changed connections between blocks
+Changed block positions (layout changes)
+
+
+
+FR-023: Routine Content Diff - Structured Text
+Priority: Must Have
+Description: System shall perform line-level diff analysis on ST routines with token highlighting.
+Acceptance Criteria:
+
+System identifies added lines with position
+System identifies removed lines with original position
+System identifies modified lines
+For modified lines, system identifies changed tokens:
+
+Variable names
+Operators
+Literal values
+Function/FB calls
+Comments
+
+
+System handles ST syntax variations between platforms
+
+FR-024: Tag Database Diff
+Priority: Must Have
+Description: System shall identify all changes to tag/variable definitions.
+Acceptance Criteria:
+
+System identifies added tags
+System identifies removed tags
+System identifies modified tags with specific changes:
+
+Data type changes
+Description changes
+Initial value changes
+Scope changes
+Array dimension changes
+
+
+System handles platform-specific tag attributes
+
+FR-025: Comments and Documentation Diff
+Priority: Must Have
+Description: System shall track changes to comments and documentation strings.
+Acceptance Criteria:
+
+System tracks rung/network comments
+System tracks routine descriptions
+System tracks program descriptions
+System tracks tag descriptions
+System indicates comment-only changes distinctly from logic changes
+
+4.3 Visualisation
+FR-030: Ladder Diagram Rendering
+Priority: Must Have
+Description: System shall render Ladder logic graphically for comparison display.
+Acceptance Criteria:
+
+System renders standard LD elements (contacts, coils, branches)
+System renders instruction boxes with operands
+System renders branch structures correctly
+System applies colour coding:
+
+Green: Added elements/rungs
+Red: Removed elements/rungs
+Yellow/Orange: Modified elements
+Grey: Unchanged elements
+
+
+Rendering is readable at 100% zoom on 1920x1080 display
+System supports zoom in/out (50% to 200%)
+
+FR-031: FBD Rendering
+Priority: Must Have
+Description: System shall render Function Block Diagrams graphically for comparison display.
+Acceptance Criteria:
+
+System renders function blocks with inputs/outputs
+System renders connections between blocks
+System renders input/output variables
+System applies colour coding (as per FR-030)
+Network layout matches original as closely as practical
+System supports zoom in/out (50% to 200%)
+
+FR-032: Structured Text Rendering
+Priority: Must Have
+Description: System shall render Structured Text with syntax highlighting and diff indication.
+Acceptance Criteria:
+
+System displays side-by-side source and target views
+System applies syntax highlighting:
+
+Keywords (IF, THEN, FOR, etc.)
+Variables
+Operators
+Literals
+Comments
+
+
+System indicates line-level changes with background colour
+System indicates token-level changes with text highlighting
+Line numbers displayed for both views
+Views scroll synchronously
+
+FR-033: Summary View
+Priority: Must Have
+Description: System shall provide a summary overview of all changes.
+Acceptance Criteria:
+
+Summary displays total counts:
+
+Programs/units changed
+Routines/sections changed
+Rungs/networks changed
+Tags changed
+
+
+Summary provides navigation to each changed item
+Summary distinguishes severity/type of changes
+Summary can be expanded/collapsed by category
+
+4.4 User Interface
+FR-040: Main Window Layout
+Priority: Must Have
+Description: System shall provide intuitive main window layout.
+Acceptance Criteria:
+
+Navigation tree on left panel (collapsible)
+Main content area in centre
+Properties/details panel on right (collapsible)
+Toolbar with common actions
+Status bar with progress and file information
+Menu bar with full functionality access
+
+FR-041: File Selection
+Priority: Must Have
+Description: System shall provide clear file selection workflow.
+Acceptance Criteria:
+
+Drag-and-drop support for files
+Browse dialog for file selection
+Recent files list
+Clear indication of which file is source vs target
+Ability to swap source and target
+
+FR-042: Navigation
+Priority: Must Have
+Description: System shall provide efficient navigation through changes.
+Acceptance Criteria:
+
+Tree view shows program structure
+Changed items visually distinguished in tree
+"Next change" / "Previous change" navigation buttons
+Keyboard shortcuts for navigation
+Filter to show only changed items
+Search within comparison results
+
+FR-043: Preferences
+Priority: Should Have
+Description: System shall allow user preferences configuration.
+Acceptance Criteria:
+
+Colour scheme customisation (for accessibility)
+Default export settings
+Recent files count
+Font size adjustment
+Preferences persist between sessions
+
+4.5 PDF Export
+FR-050: PDF Report Generation
+Priority: Must Have
+Description: System shall generate professional PDF comparison reports.
+Acceptance Criteria:
+
+Report includes cover page with:
+
+Report title
+Source and target file names
+Comparison date/time
+RevCat version
+
+
+Report includes table of contents (for reports >5 pages)
+Report includes executive summary of changes
+Report includes detailed change listings by category
+Report includes graphical renderings of changed routines
+Report suitable for A4 or Letter page size
+Report file size reasonable (<50MB for typical project)
+
+FR-051: PDF Export Options
+Priority: Must Have
+Description: System shall provide configurable PDF export options.
+Acceptance Criteria:
+
+Option to include/exclude unchanged items for context
+Option to include/exclude specific categories (tags, routines, etc.)
+Option to set detail level (summary only, or full detail)
+Option to add custom header/footer text
+Option to add company logo
+Option for page size (A4/Letter)
+
+FR-052: PDF Visual Quality
+Priority: Must Have
+Description: PDF renderings shall be high quality.
+Acceptance Criteria:
+
+Ladder logic renders as vector graphics (not bitmap)
+FBD renders as vector graphics
+Text is selectable/searchable in PDF
+Colour coding preserved in print-friendly format
+Renders correctly when printed in B&W
+
+4.6 Command Line Interface
+FR-060: Single Comparison CLI
+Priority: Must Have
+Description: System shall support single comparison via CLI.
+Acceptance Criteria:
+
+Command format: revcat compare --source <file> --target <file> --output <file>
+Optional parameters for export configuration
+Exit code 0 on success
+Exit code 1 on error with stderr message
+Progress indication for long operations
+
+FR-061: Batch Processing CLI
+Priority: Must Have
+Description: System shall support batch comparison via CLI.
+Acceptance Criteria:
+
+Command format: revcat batch --input <manifest> --output <directory>
+Manifest file format documented (JSON or YAML)
+Parallel processing option for performance
+Batch summary report generated
+Individual comparison failures don't stop batch
+Exit code indicates overall batch status
+
+FR-062: CLI Help and Documentation
+Priority: Must Have
+Description: CLI shall be self-documenting.
+Acceptance Criteria:
+
+revcat --help displays usage information
+revcat <command> --help displays command-specific help
+revcat --version displays version information
+Man page or equivalent documentation available
+
+
+5. Technical Architecture
+5.1 High-Level Architecture
+┌─────────────────────────────────────────────────────────────────┐
+│                         RevCat Application                       │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │   GUI       │  │    CLI      │  │    PDF Export Engine    │  │
+│  │  (PyQt6)    │  │  (Click)    │  │    (ReportLab/WeasyPrint)│  │
+│  └──────┬──────┘  └──────┬──────┘  └───────────┬─────────────┘  │
+│         │                │                      │                │
+│  ┌──────┴────────────────┴──────────────────────┴─────────────┐  │
+│  │                    Core Engine                              │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │  │
+│  │  │   Parser    │  │    Diff     │  │     Renderer        │ │  │
+│  │  │   Module    │  │   Engine    │  │     Module          │ │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────────────┘ │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│         │                │                      │                │
+│  ┌──────┴────────────────┴──────────────────────┴─────────────┐  │
+│  │                    Data Models                              │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │  │
+│  │  │  Project    │  │   Diff      │  │    Rendering        │ │  │
+│  │  │  Model      │  │   Model     │  │    Model            │ │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────────────┘ │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+5.2 Technology Stack
+LayerTechnologyRationaleLanguagePython 3.11+Cross-platform, rapid development, rich librariesGUI FrameworkPyQt6Professional appearance, good performance, commercial licensing availableCLI FrameworkClickClean API, good documentation, widely usedXML ParsinglxmlFast, full XPath support, handles large filesDiff AlgorithmCustom + difflibdifflib for text, custom for structuralPDF GenerationReportLab + svglibVector graphics support, professional outputPackagingPyInstallerSingle executable distributionTestingpytestStandard, good coverage support
+5.3 Module Structure
+revcat/
+├── __init__.py
+├── __main__.py              # Entry point
+├── cli/
+│   ├── __init__.py
+│   ├── main.py              # CLI commands
+│   └── batch.py             # Batch processing logic
+├── gui/
+│   ├── __init__.py
+│   ├── main_window.py       # Main application window
+│   ├── comparison_view.py   # Comparison display widget
+│   ├── tree_view.py         # Navigation tree
+│   ├── ladder_view.py       # Ladder rendering widget
+│   ├── fbd_view.py          # FBD rendering widget
+│   ├── st_view.py           # ST rendering widget
+│   ├── dialogs/
+│   │   ├── file_select.py
+│   │   ├── export_options.py
+│   │   └── preferences.py
+│   └── resources/
+│       ├── icons/
+│       └── styles/
+├── core/
+│   ├── __init__.py
+│   ├── parsers/
+│   │   ├── __init__.py
+│   │   ├── base.py          # Abstract parser interface
+│   │   ├── l5x_parser.py    # Rockwell L5X parser
+│   │   └── xef_parser.py    # Schneider XEF parser
+│   ├── diff/
+│   │   ├── __init__.py
+│   │   ├── engine.py        # Main diff orchestration
+│   │   ├── structural.py    # Program structure diff
+│   │   ├── ladder.py        # Ladder-specific diff
+│   │   ├── fbd.py           # FBD-specific diff
+│   │   └── st.py            # ST-specific diff
+│   └── renderers/
+│       ├── __init__.py
+│       ├── base.py          # Abstract renderer interface
+│       ├── ladder.py        # Ladder to visual
+│       ├── fbd.py           # FBD to visual
+│       └── st.py            # ST to visual
+├── models/
+│   ├── __init__.py
+│   ├── project.py           # Unified project model
+│   ├── program.py           # Program/unit model
+│   ├── routine.py           # Routine/section model
+│   ├── tag.py               # Tag/variable model
+│   ├── ladder.py            # Ladder logic model
+│   ├── fbd.py               # FBD model
+│   ├── st.py                # ST model
+│   └── diff.py              # Diff result models
+├── export/
+│   ├── __init__.py
+│   ├── pdf.py               # PDF generation
+│   └── templates/           # Report templates
+├── config/
+│   ├── __init__.py
+│   ├── settings.py          # Application settings
+│   └── defaults.py          # Default values
+└── utils/
+    ├── __init__.py
+    ├── xml.py               # XML utilities
+    ├── text.py              # Text processing utilities
+    └── logging.py           # Logging configuration
+5.4 Key Design Patterns
+5.4.1 Parser Plugin Architecture
+Parsers implement a common interface to allow easy addition of new platforms:
+pythonfrom abc import ABC, abstractmethod
+from models.project import Project
+
+class BaseParser(ABC):
+    @abstractmethod
+    def can_parse(self, filepath: Path) -> bool:
+        """Return True if this parser can handle the file."""
+        pass
+    
+    @abstractmethod
+    def parse(self, filepath: Path) -> Project:
+        """Parse file and return unified Project model."""
+        pass
+    
+    @abstractmethod
+    def get_platform_name(self) -> str:
+        """Return human-readable platform name."""
+        pass
+5.4.2 Unified Internal Model
+All platforms parse to a common internal model, enabling platform-agnostic diff and rendering:
+Project
+├── metadata (name, version, platform, timestamps)
+├── programs[]
+│   ├── name
+│   ├── description
+│   └── routines[]
+│       ├── name
+│       ├── language (LD, FBD, ST)
+│       ├── description
+│       └── content (language-specific model)
+└── tags[]
+    ├── name
+    ├── data_type
+    ├── scope
+    ├── description
+    └── initial_value
+5.4.3 Diff Result Model
+Diff results provide a structured representation of changes:
+DiffResult
+├── metadata
+│   ├── source_file
+│   ├── target_file
+│   ├── comparison_timestamp
+│   └── summary_statistics
+├── structural_changes[]
+│   ├── change_type (Added, Removed, Modified, Moved)
+│   ├── item_type (Program, Routine, Tag)
+│   ├── item_path
+│   └── details
+└── content_changes[]
+    ├── routine_path
+    ├── language
+    └── changes[] (language-specific)
+5.5 Threading Model
+OperationThreading ApproachFile parsingBackground thread with progress callbackDiff analysisBackground thread with progress callbackPDF generationBackground thread with progress callbackGUI renderingMain thread (Qt requirement)Batch processingThreadPoolExecutor with configurable workers
+5.6 Memory Management
+For large files (>100MB), the system shall:
+
+Use streaming XML parsing where possible
+Release parsed source data after diff analysis
+Generate PDF in chunks rather than holding entire document in memory
+Provide memory usage monitoring in GUI status bar
+
+
+6. Data Models
+6.1 Project Model
+python@dataclass
+class Project:
+    """Unified project representation."""
+    name: str
+    platform: Platform  # Enum: ROCKWELL, SCHNEIDER
+    source_file: Path
+    version: Optional[str]
+    created: Optional[datetime]
+    modified: Optional[datetime]
+    programs: List[Program]
+    tags: List[Tag]
+    metadata: Dict[str, Any]  # Platform-specific extras
+6.2 Program Model
+python@dataclass
+class Program:
+    """Program or program unit."""
+    name: str
+    description: Optional[str]
+    routines: List[Routine]
+    local_tags: List[Tag]  # Program-scoped tags
+    metadata: Dict[str, Any]
+6.3 Routine Model
+python@dataclass
+class Routine:
+    """Routine or section."""
+    name: str
+    language: Language  # Enum: LADDER, FBD, ST, SFC
+    description: Optional[str]
+    content: Union[LadderContent, FBDContent, STContent]
+    metadata: Dict[str, Any]
+6.4 Tag Model
+python@dataclass
+class Tag:
+    """Tag or variable definition."""
+    name: str
+    data_type: str
+    scope: Scope  # Enum: CONTROLLER, PROGRAM, LOCAL
+    description: Optional[str]
+    initial_value: Optional[str]
+    dimensions: Optional[List[int]]  # For arrays
+    metadata: Dict[str, Any]
+6.5 Ladder Content Model
+python@dataclass
+class LadderContent:
+    """Ladder diagram content."""
+    rungs: List[Rung]
+
+@dataclass
+class Rung:
+    """Single ladder rung."""
+    number: int
+    comment: Optional[str]
+    elements: List[LadderElement]
+    branches: List[Branch]
+
+@dataclass
+class LadderElement:
+    """Ladder element (contact, coil, instruction)."""
+    element_type: LadderElementType
+    instruction: Optional[str]  # e.g., "XIC", "OTE", "TON"
+    operands: List[Operand]
+    position: Position  # Row, column in rung
+6.6 FBD Content Model
+python@dataclass
+class FBDContent:
+    """Function Block Diagram content."""
+    networks: List[Network]
+
+@dataclass
+class Network:
+    """Single FBD network."""
+    number: int
+    comment: Optional[str]
+    blocks: List[FBDBlock]
+    connections: List[Connection]
+
+@dataclass
+class FBDBlock:
+    """Function block instance."""
+    block_type: str
+    instance_name: Optional[str]
+    position: Position
+    inputs: List[Pin]
+    outputs: List[Pin]
+    parameters: Dict[str, Any]
+6.7 ST Content Model
+python@dataclass
+class STContent:
+    """Structured Text content."""
+    lines: List[STLine]
+    
+@dataclass
+class STLine:
+    """Single line of ST code."""
+    number: int
+    text: str
+    tokens: List[Token]  # Parsed tokens for highlighting
+
+@dataclass
+class Token:
+    """Syntax token."""
+    token_type: TokenType  # KEYWORD, VARIABLE, OPERATOR, LITERAL, COMMENT
+    value: str
+    start: int  # Character position
+    end: int
+6.8 Diff Result Models
+python@dataclass
+class DiffResult:
+    """Complete diff result."""
+    source: Project
+    target: Project
+    timestamp: datetime
+    structural_diffs: List[StructuralDiff]
+    tag_diffs: List[TagDiff]
+    routine_diffs: List[RoutineDiff]
+
+@dataclass
+class StructuralDiff:
+    """Program structure change."""
+    change_type: ChangeType  # ADDED, REMOVED, MODIFIED, MOVED
+    item_type: str
+    path: str
+    source_item: Optional[Any]
+    target_item: Optional[Any]
+
+@dataclass
+class RoutineDiff:
+    """Routine content diff."""
+    routine_path: str
+    language: Language
+    content_diff: Union[LadderDiff, FBDDiff, STDiff]
+
+@dataclass
+class LadderDiff:
+    """Ladder-specific diff."""
+    rung_diffs: List[RungDiff]
+
+@dataclass
+class RungDiff:
+    """Single rung diff."""
+    change_type: ChangeType
+    source_rung: Optional[Rung]
+    target_rung: Optional[Rung]
+    element_diffs: List[ElementDiff]  # For MODIFIED rungs
+
+7. User Interface Specification
+7.1 Main Window Layout
+┌─────────────────────────────────────────────────────────────────────────┐
+│  File   Edit   View   Compare   Export   Tools   Help                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│  [Open] [Compare] [Export PDF] [Prev] [Next] │ Filter: [Changed Only ▼] │
+├─────────────────┬───────────────────────────────────────┬───────────────┤
+│                 │                                       │               │
+│   Navigation    │         Main Content Area             │   Details     │
+│                 │                                       │               │
+│  ▼ Project      │   ┌─────────────────────────────────┐ │  Selected:    │
+│    ▼ MainProg   │   │                                 │ │  Rung 15      │
+│      ● Main [M] │   │   [Graphical Diff Display]      │ │               │
+│      ○ Init     │   │                                 │ │  Change Type: │
+│      ● Safety[M]│   │                                 │ │  Modified     │
+│    ▶ AOI_Custom │   │                                 │ │               │
+│  ▼ Tags         │   │                                 │ │  Elements:    │
+│    ● Controller │   │                                 │ │  - XIC added  │
+│    ○ Program    │   │                                 │ │  - Operand    │
+│                 │   │                                 │ │    changed    │
+│                 │   └─────────────────────────────────┘ │               │
+│  Legend:        │                                       │               │
+│  ● Changed      │   [◀ Rung 14] [Rung 15] [Rung 16 ▶]  │               │
+│  ○ Unchanged    │                                       │               │
+│  [M] Modified   │                                       │               │
+│  [+] Added      │                                       │               │
+│  [-] Removed    │                                       │               │
+│                 │                                       │               │
+├─────────────────┴───────────────────────────────────────┴───────────────┤
+│  Ready │ Source: Project_v1.L5X │ Target: Project_v2.L5X │ 47 changes   │
+└─────────────────────────────────────────────────────────────────────────┘
+7.2 Colour Scheme
+ElementDefault ColourUsageAdded#22C55E (Green)New elements in targetRemoved#EF4444 (Red)Elements only in sourceModified#F59E0B (Amber)Changed elementsUnchanged#6B7280 (Grey)Context elementsBackground#FFFFFF (White)Main content areaHighlight#3B82F6 (Blue)Selected item
+7.3 Ladder Diff View
+┌─────────────────────────────────────────────────────────────────────┐
+│  Rung 15 [MODIFIED]                                                 │
+│  Comment: "Start sequence logic" → "Start sequence logic v2"        │
+├─────────────────────────────────────────────────────────────────────┤
+│  SOURCE (v1)                      │  TARGET (v2)                    │
+├───────────────────────────────────┼─────────────────────────────────┤
+│                                   │                                 │
+│  ──┤ ├──┬──┤ ├──────────(  )──   │  ──┤ ├──┬──┤ ├──┤ ├────(  )──  │
+│    A    │   B           Y        │    A    │   B   [C]      Y      │
+│         │                        │         │       ▲                │
+│         └──┤/├──────────         │         └──┤/├──┼────────        │
+│             C                    │             C   │                │
+│                                  │                 └─ ADDED         │
+│                                  │                                  │
+│  [Grey background]               │  [White background, C in green]  │
+└───────────────────────────────────┴─────────────────────────────────┘
+7.4 FBD Diff View
+┌─────────────────────────────────────────────────────────────────────┐
+│  Network 3 [MODIFIED]                                               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   ┌──────────┐         ┌──────────┐         ┌──────────┐           │
+│   │   AND    │         │   TON    │         │  MOVE    │           │
+│   │          │────────▶│  Timer1  │────────▶│  [MOD]   │           │
+│   │  [DEL]   │         │          │         │          │           │
+│   └──────────┘         └──────────┘         └──────────┘           │
+│       ▲                                          │                  │
+│       │                                          ▼                  │
+│   ┌───┴──────┐                             ┌──────────┐            │
+│   │   OR     │                             │  Output  │            │
+│   │  [ADD]   │                             │   Coil   │            │
+│   └──────────┘                             └──────────┘            │
+│                                                                     │
+│  Legend: [DEL]=Removed  [ADD]=Added  [MOD]=Modified                │
+└─────────────────────────────────────────────────────────────────────┘
+7.5 Structured Text Diff View
+┌─────────────────────────────────────────────────────────────────────┐
+│  Routine: Calculate_Speed [MODIFIED]                                │
+├────────────────────────────────┬────────────────────────────────────┤
+│  SOURCE (v1)                   │  TARGET (v2)                       │
+├────────────────────────────────┼────────────────────────────────────┤
+│  12 │ // Calculate speed       │  12 │ // Calculate speed          │
+│  13 │ IF Running THEN          │  13 │ IF Running THEN             │
+│  14 │   Speed := Counts *      │  14 │   Speed := Counts *         │
+│     │            Factor;       │     │            [Factor_New];    │
+│  15 │   IF Speed > 100 THEN    │  15 │   IF Speed > [150] THEN     │
+│  16 │     Alarm := TRUE;       │  16 │     Alarm := TRUE;          │
+│     │                          │  17+│     [Log_Event(1);]         │
+│  17 │   END_IF;                │  18 │   END_IF;                   │
+│  18 │ END_IF;                  │  19 │ END_IF;                     │
+├────────────────────────────────┴────────────────────────────────────┤
+│  [Yellow background = line modified]                                │
+│  [Green background = line added]                                    │
+│  [Highlighted text] = specific token changed                        │
+└─────────────────────────────────────────────────────────────────────┘
+7.6 Welcome/Start Screen
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│                           RevCat                                    │
+│                     PLC Version Control                             │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                                                             │   │
+│  │              [  New Comparison  ]                           │   │
+│  │                                                             │   │
+│  │              [  Open Recent...  ]                           │   │
+│  │                                                             │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│  Recent Comparisons:                                                │
+│  ─────────────────────────────────────────────────────────────────  │
+│  ● Project_v2.L5X vs Project_v1.L5X          Yesterday 14:32       │
+│  ● Safety_Controller.L5X vs Baseline.L5X     10 Dec 2024           │
+│  ● Unit_Section.XEF vs Unit_Section_old.XEF  8 Dec 2024            │
+│                                                                     │
+│  Supported Platforms:                                               │
+│  • Rockwell Studio 5000 (L5X export)                               │
+│  • Schneider EcoStruxure Control Expert (XEF export)               │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+8. Command Line Interface
+8.1 Command Structure
+revcat [OPTIONS] COMMAND [ARGS]
+
+Options:
+  --version       Show version and exit
+  --verbose, -v   Enable verbose output
+  --quiet, -q     Suppress non-error output
+  --help          Show this message and exit
+
+Commands:
+  compare   Compare two PLC project files
+  batch     Process multiple comparisons from manifest
+  info      Display information about a project file
+  gui       Launch graphical interface (default if no command)
+8.2 Compare Command
+revcat compare [OPTIONS] --source FILE --target FILE
+
+Compare two PLC project export files.
+
+Options:
+  --source, -s FILE       Source/baseline file (required)
+  --target, -t FILE       Target/modified file (required)
+  --output, -o FILE       Output PDF file (default: comparison_TIMESTAMP.pdf)
+  --format FORMAT         Output format: pdf, json, html (default: pdf)
+  --include-unchanged     Include unchanged items in output
+  --detail-level LEVEL    Detail level: summary, standard, full (default: standard)
+  --header TEXT           Custom header text for PDF
+  --footer TEXT           Custom footer text for PDF
+  --logo FILE             Company logo for PDF cover
+  --help                  Show this message and exit
+
+Examples:
+  revcat compare -s baseline.L5X -t modified.L5X -o changes.pdf
+  revcat compare -s v1.XEF -t v2.XEF --detail-level full
+8.3 Batch Command
+revcat batch [OPTIONS] --input MANIFEST --output DIRECTORY
+
+Process multiple comparisons defined in a manifest file.
+
+Options:
+  --input, -i FILE        Manifest file (JSON or YAML) (required)
+  --output, -o DIR        Output directory for reports (required)
+  --workers, -w INT       Parallel workers (default: 4)
+  --continue-on-error     Continue processing if individual comparisons fail
+  --summary-only          Generate only batch summary, no individual PDFs
+  --help                  Show this message and exit
+
+Examples:
+  revcat batch -i comparisons.json -o ./reports/
+  revcat batch -i manifest.yaml -o ./output/ -w 8 --continue-on-error
+8.4 Batch Manifest Format
+json{
+  "batch_name": "Site Handover - December 2024",
+  "default_options": {
+    "detail_level": "standard",
+    "include_unchanged": false,
+    "header": "ACME Mining - Control System Handover",
+    "logo": "./assets/acme_logo.png"
+  },
+  "comparisons": [
+    {
+      "name": "Crusher_PLC",
+      "source": "./baseline/Crusher_v1.L5X",
+      "target": "./current/Crusher_v2.L5X",
+      "output_name": "Crusher_Changes.pdf"
+    },
+    {
+      "name": "Conveyor_PLC",
+      "source": "./baseline/Conveyor_v1.L5X",
+      "target": "./current/Conveyor_v2.L5X",
+      "output_name": "Conveyor_Changes.pdf",
+      "options": {
+        "detail_level": "full"
+      }
+    },
+    {
+      "name": "Safety_Controller",
+      "source": "./baseline/Safety_SIL2.L5X",
+      "target": "./current/Safety_SIL2.L5X",
+      "output_name": "Safety_Changes.pdf",
+      "options": {
+        "include_unchanged": true,
+        "header": "SAFETY CRITICAL - SIL2 Comparison"
+      }
+    }
+  ]
+}
+8.5 Info Command
+revcat info [OPTIONS] FILE
+
+Display information about a PLC project export file.
+
+Options:
+  --format FORMAT    Output format: text, json (default: text)
+  --help             Show this message and exit
+
+Example Output:
+  File: Project.L5X
+  Platform: Rockwell Studio 5000
+  Project Name: Crusher_Control
+  Controller: 1756-L83E
+  Version: v32.011
+  Last Modified: 2024-12-10 14:32:15
+  Programs: 5
+  Routines: 47
+  Tags: 1,234
+  AOIs: 12
+8.6 Exit Codes
+CodeMeaning0Success1General error2Invalid arguments3File not found4Parse error5Comparison error6Export error10Batch completed with some failures
+
+9. PDF Export Specification
+9.1 Report Structure
+1. Cover Page
+   - Product logo
+   - Report title
+   - Source file name and path
+   - Target file name and path
+   - Comparison date and time
+   - Generated by RevCat version X.Y.Z
+   - Optional: Company logo and custom header
+
+2. Table of Contents (if >5 pages)
+
+3. Executive Summary
+   - Comparison overview
+   - Total changes by category (table)
+   - Change severity distribution
+   - Key findings (auto-generated highlights)
+
+4. Tag Database Changes (if any)
+   - Summary table
+   - Detailed listings by change type
+   
+5. Program Structure Changes (if any)
+   - Added/removed programs
+   - Added/removed routines
+
+6. Detailed Routine Changes
+   - For each changed routine:
+     - Routine header (name, language, change summary)
+     - Change details with graphics
+     - For LD: Rung-by-rung comparison images
+     - For FBD: Network comparison images
+     - For ST: Side-by-side text with highlighting
+
+7. Appendix A: File Metadata
+   - Full project information for both files
+   
+8. Appendix B: Glossary (optional)
+   - Platform-specific terminology
+9.2 Visual Rendering Quality
+RequirementSpecificationLadder graphicsVector SVG rendered to PDF, min 300 DPI equivalentFBD graphicsVector SVG rendered to PDF, min 300 DPI equivalentTextEmbedded fonts, searchable/selectableColour modelCMYK for print compatibilityPage sizeA4 (210mm × 297mm) or Letter (8.5" × 11")Margins20mm all sidesMax file size<50MB for typical project (<1000 rungs)
+9.3 Page Layout
+┌─────────────────────────────────────────────────────────────────┐
+│  [Company Logo]                              [RevCat Logo]      │  Header
+│  Custom Header Text                                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│                                                                 │
+│                                                                 │
+│                         Content Area                            │
+│                                                                 │
+│                         (max 247mm height on A4)                │
+│                                                                 │
+│                                                                 │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│  Source: filename.L5X │ Target: filename.L5X │ Page X of Y     │  Footer
+│  Generated: 2024-12-11 10:30:00                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+10. Performance Requirements
+10.1 GUI Performance
+OperationTarget TimeMeasurement PointApplication launch<3 secondsWindow visible and responsiveFile parse (10MB)<10 secondsProgress completeFile parse (100MB)<60 secondsProgress completeDiff analysis<30 secondsFor typical 500-rung projectView navigation<100msResponse to clickScroll/pan60 FPSSmooth rendering
+10.2 CLI Performance
+OperationTarget TimeMeasurement PointSingle comparison<2 minutes100MB file with full PDFBatch throughput>10 comparisons/minuteWith 4 workers, 10MB filesPDF generation<30 secondsFor 50-page report
+10.3 Resource Limits
+ResourceLimitMemory (GUI)<2GB for 100MB projectMemory (CLI)<1GB per comparisonDisk (temp)<500MB working spaceCPUMulti-core utilised for batch
+
+11. Security Considerations
+11.1 Data Handling
+ConsiderationApproachFile accessRead-only access to source filesSensitive dataNo transmission of project data externallyTemporary filesCleared on application exitLoggingNo PLC code logged, only metadata
+11.2 Commercial Protection
+ConsiderationApproachLicense validationOnline activation, offline grace periodCode obfuscationPyInstaller with encryptionTrial limitationsTime-limited or feature-limited trial
+
+12. Development Roadmap
+12.1 Phase 1: Core MVP (Weeks 1-8)
+Goal: Functional comparison tool for Rockwell L5X files
+WeekDeliverables1-2Project setup, L5X parser skeleton, data models3-4L5X parser complete (LD, FBD, ST extraction)5-6Diff engine (structural, tag, routine content)7-8Basic GUI with tree view, ST diff display
+Exit Criteria:
+
+Parse any Studio 5000 v24+ L5X file
+Display ST differences with highlighting
+Compare tag databases
+
+12.2 Phase 2: Graphical Diff (Weeks 9-14)
+Goal: Visual comparison for Ladder and FBD
+WeekDeliverables9-10Ladder rendering engine11-12Ladder diff visualisation13-14FBD rendering and diff visualisation
+Exit Criteria:
+
+Graphical ladder diff display
+Graphical FBD diff display
+Print-quality rendering
+
+12.3 Phase 3: Schneider Support (Weeks 15-18)
+Goal: Full Schneider EcoStruxure support
+WeekDeliverables15-16XEF parser implementation17-18Platform-specific rendering adjustments, testing
+Exit Criteria:
+
+Parse Unity Pro / Control Expert XEF files
+All diff features working for Schneider
+
+12.4 Phase 4: PDF Export (Weeks 19-22)
+Goal: Professional PDF report generation
+WeekDeliverables19-20PDF generation framework, cover page, TOC21-22Full report rendering, export options
+Exit Criteria:
+
+Complete PDF reports with graphics
+Customisable headers/logos
+<50MB for typical reports
+
+12.5 Phase 5: CLI and Batch (Weeks 23-26)
+Goal: Command line interface and batch processing
+WeekDeliverables23-24CLI implementation, single comparison25-26Batch processing, manifest format, parallel execution
+Exit Criteria:
+
+Full CLI as specified
+Batch processing 10+ comparisons/minute
+Comprehensive help documentation
+
+12.6 Phase 6: Polish and Release (Weeks 27-30)
+Goal: Production-ready release
+WeekDeliverables27-28UI polish, preferences, error handling29-30Installer, documentation, license system
+Exit Criteria:
+
+Windows installer
+User documentation
+License activation system
+Marketing website ready
+
+
+13. Future Considerations
+13.1 Multi-User Architecture (Phase 2 Product)
+┌─────────────────────────────────────────────────────────────────┐
+│                       RevCat Server                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │   REST API  │  │  Database   │  │   File Storage          │  │
+│  │             │  │  (Postgres) │  │   (S3 compatible)       │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+         ▲                  ▲                    ▲
+         │                  │                    │
+    ┌────┴────┐       ┌────┴────┐         ┌────┴────┐
+    │ Client  │       │ Client  │         │ Client  │
+    │   A     │       │   B     │         │   C     │
+    └─────────┘       └─────────┘         └─────────┘
+Additional Features:
+
+Central repository of project versions
+User authentication and access control
+Audit trail of all comparisons
+Scheduled automatic backups and comparisons
+Web interface option
+
+13.2 Additional Platform Support
+PlatformPriorityComplexityNotesSiemens TIA PortalHighHighLarge market share, complex formatsABB Automation BuilderMediumMediumGrowing in miningSchneider Machine ExpertMediumLowCodesys-based, similar to UnityBeckhoff TwinCATLowMediumNiche but loyal user baseCodesys (generic)MediumMediumWould cover multiple vendors
+13.3 Advanced Features Backlog
+FeatureDescriptionValueChange approval workflowRequire sign-off on changesMOC complianceGit integrationNative git backend for versioningDeveloper familiarityOnline comparisonCompare without full exportReduced workflow frictionAI-assisted reviewHighlight potentially problematic changesSafetyMerge toolThree-way merge for concurrent changesTeam collaborationSearch across versionsFind when specific change was introducedDebugging
+
+Appendices
+Appendix A: L5X File Structure Reference
+xml<?xml version="1.0" encoding="UTF-8"?>
+<RSLogix5000Content SchemaRevision="1.0" 
+                    SoftwareRevision="32.00" 
+                    TargetName="MainController"
+                    TargetType="Controller">
+  <Controller Name="MainController">
+    <DataTypes>...</DataTypes>
+    <Modules>...</Modules>
+    <AddOnInstructionDefinitions>
+      <AddOnInstructionDefinition Name="AOI_Name">
+        <Parameters>...</Parameters>
+        <LocalTags>...</LocalTags>
+        <Routines>...</Routines>
+      </AddOnInstructionDefinition>
+    </AddOnInstructionDefinitions>
+    <Tags>
+      <Tag Name="TagName" DataType="DINT" Value="0">
+        <Description>Tag description</Description>
+      </Tag>
+    </Tags>
+    <Programs>
+      <Program Name="MainProgram">
+        <Tags>...</Tags>
+        <Routines>
+          <Routine Name="MainRoutine" Type="RLL">
+            <RLLContent>
+              <Rung Number="0" Type="N">
+                <Comment>Rung comment</Comment>
+                <Text>XIC(Input)OTE(Output);</Text>
+              </Rung>
+            </RLLContent>
+          </Routine>
+          <Routine Name="FBD_Routine" Type="FBD">
+            <FBDContent>
+              <Sheet Number="0">
+                <Block ID="0" Type="AND" X="100" Y="50">
+                  <Pin ID="1" Name="In1"/>
+                  <Pin ID="2" Name="In2"/>
+                  <Pin ID="3" Name="Out"/>
+                </Block>
+                <Wire FromID="..." ToID="..."/>
+              </Sheet>
+            </FBDContent>
+          </Routine>
+          <Routine Name="ST_Routine" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[IF Input THEN]]></Line>
+              <Line Number="1"><![CDATA[  Output := TRUE;]]></Line>
+              <Line Number="2"><![CDATA[END_IF;]]></Line>
+            </STContent>
+          </Routine>
+        </Routines>
+      </Program>
+    </Programs>
+    <Tasks>
+      <Task Name="MainTask" Type="CONTINUOUS">
+        <ScheduledPrograms>
+          <ScheduledProgram Name="MainProgram"/>
+        </ScheduledPrograms>
+      </Task>
+    </Tasks>
+  </Controller>
+</RSLogix5000Content>
+Appendix B: XEF File Structure Reference
+xml<?xml version="1.0" encoding="UTF-8"?>
+<Exchange xmlns="...">
+  <Project>
+    <ContentHeader name="ProjectName" version="14.1"/>
+    <dataBlock>
+      <variables>
+        <variable name="VarName" typeName="BOOL">
+          <comment>Variable description</comment>
+        </variable>
+      </variables>
+    </dataBlock>
+    <program>
+      <section name="SectionName" language="LD">
+        <LDSource>
+          <network number="1" comment="Network comment">
+            <contact name="Input" type="coil"/>
+            <coil name="Output"/>
+          </network>
+        </LDSource>
+      </section>
+      <section name="FBD_Section" language="FBD">
+        <FBDSource>
+          <networkFBD number="1">
+            <functionBlock name="AND" instanceName="AND_1">
+              <pin name="IN1" type="BOOL"/>
+              <pin name="IN2" type="BOOL"/>
+              <pin name="OUT" type="BOOL"/>
+            </functionBlock>
+          </networkFBD>
+        </FBDSource>
+      </section>
+      <section name="ST_Section" language="ST">
+        <STSource>
+          <![CDATA[
+IF Input THEN
+  Output := TRUE;
+END_IF;
+          ]]>
+        </STSource>
+      </section>
+    </program>
+  </Project>
+</Exchange>
+Appendix C: Glossary
+TermDefinitionAOIAdd-On Instruction - Rockwell user-defined function blockDFBDerived Function Block - Schneider user-defined function blockFBDFunction Block Diagram - IEC 61131-3 graphical programming languageL5XRockwell XML export formatLDLadder Diagram - IEC 61131-3 graphical programming languageMOCManagement of Change - formal process for documenting system changesRungA single horizontal logic element in Ladder DiagramSFCSequential Function Chart - IEC 61131-3 programming languageSTStructured Text - IEC 61131-3 text-based programming languageXEFSchneider XML export format
+
+Document Approval
+RoleNameSignatureDateAuthorTechnical ReviewProduct Owner
+
+End of Document
