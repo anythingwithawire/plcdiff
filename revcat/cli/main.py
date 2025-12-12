@@ -160,21 +160,170 @@ def _output_json(project):
 @click.option(
     "-o", "--output",
     type=click.Path(path_type=Path),
-    help="Output PDF file",
+    help="Output file (for JSON format)",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    help="Output format (default: text)",
 )
 @click.pass_context
-def compare(ctx, source: Path, target: Path, output: Path | None):
+def compare(ctx, source: Path, target: Path, output: Path | None, output_format: str):
     """Compare two PLC project export files.
 
     Example:
-        revcat compare -s baseline.L5X -t modified.L5X -o changes.pdf
+        revcat compare -s baseline.L5X -t modified.L5X
+        revcat compare -s v1.L5X -t v2.L5X --format json -o diff.json
     """
-    click.echo("Compare functionality not yet implemented.", err=True)
-    click.echo(f"  Source: {source}")
-    click.echo(f"  Target: {target}")
-    click.echo(f"  Output: {output or 'comparison_<timestamp>.pdf'}")
-    click.echo("\nThis feature will be available in a future release.")
-    sys.exit(0)
+    from revcat.core.diff import DiffEngine
+    from revcat.models import ChangeType
+
+    verbose = ctx.obj.get("verbose", False)
+    quiet = ctx.obj.get("quiet", False)
+
+    try:
+        if verbose:
+            click.echo(f"Parsing source: {source}", err=True)
+
+        source_parser = get_parser(source)
+        source_project = source_parser.parse(source)
+
+        if verbose:
+            click.echo(f"Parsing target: {target}", err=True)
+
+        target_parser = get_parser(target)
+        target_project = target_parser.parse(target)
+
+        if verbose:
+            click.echo("Comparing projects...", err=True)
+
+        engine = DiffEngine()
+        result = engine.compare(source_project, target_project)
+
+        if output_format == "json":
+            json_output = json.dumps(result.to_dict(), indent=2)
+            if output:
+                output.write_text(json_output)
+                if not quiet:
+                    click.echo(f"Diff written to: {output}")
+            else:
+                click.echo(json_output)
+        else:
+            _output_diff_text(result, quiet)
+
+    except ParserError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(4)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(5)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
+def _output_diff_text(result, quiet: bool):
+    """Output diff result in human-readable text format."""
+    from revcat.models import ChangeType
+
+    # Header
+    click.echo("=" * 60)
+    click.echo("RevCat Comparison Report")
+    click.echo("=" * 60)
+    click.echo(f"Source: {result.source.source_file.name}")
+    click.echo(f"Target: {result.target.source_file.name}")
+    click.echo(f"Platform: {result.source.platform.value.title()}")
+    click.echo(f"Timestamp: {result.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+    click.echo()
+
+    # Summary
+    s = result.summary
+    click.echo("SUMMARY")
+    click.echo("-" * 40)
+
+    if not result.has_changes:
+        click.echo("No changes detected.")
+        return
+
+    click.echo(f"Total changes: {s.total_changes}")
+    click.echo()
+
+    if s.programs_added or s.programs_removed or s.programs_modified:
+        click.echo(f"  Programs:  +{s.programs_added}  -{s.programs_removed}  ~{s.programs_modified}")
+
+    if s.routines_added or s.routines_removed or s.routines_modified:
+        click.echo(f"  Routines:  +{s.routines_added}  -{s.routines_removed}  ~{s.routines_modified}")
+
+    if s.tags_added or s.tags_removed or s.tags_modified:
+        click.echo(f"  Tags:      +{s.tags_added}  -{s.tags_removed}  ~{s.tags_modified}")
+
+    click.echo()
+
+    # Detailed changes - Tags
+    changed_tags = [t for t in result.tag_diffs if t.change_type != ChangeType.UNCHANGED]
+    if changed_tags:
+        click.echo("TAG CHANGES (Controller Scope)")
+        click.echo("-" * 40)
+        for td in changed_tags:
+            symbol = {"added": "+", "removed": "-", "modified": "~"}[td.change_type.value]
+            click.echo(f"  [{symbol}] {td.name}", nl=False)
+            if td.change_type == ChangeType.ADDED:
+                click.echo(f" ({td.target_tag.data_type})")
+            elif td.change_type == ChangeType.REMOVED:
+                click.echo(f" ({td.source_tag.data_type})")
+            else:
+                click.echo(f" - {', '.join(td.changes)}")
+        click.echo()
+
+    # Detailed changes - Programs and Routines
+    for pd in result.program_diffs:
+        if pd.change_type == ChangeType.UNCHANGED:
+            # Check if there are routine changes
+            routine_changes = [r for r in pd.routine_diffs if r.change_type != ChangeType.UNCHANGED]
+            if not routine_changes:
+                continue
+
+        click.echo(f"PROGRAM: {pd.name}")
+        click.echo("-" * 40)
+
+        if pd.change_type == ChangeType.ADDED:
+            click.echo("  [+] Program added")
+            for rd in pd.routine_diffs:
+                click.echo(f"      [+] {rd.name} ({rd.language.value})")
+        elif pd.change_type == ChangeType.REMOVED:
+            click.echo("  [-] Program removed")
+            for rd in pd.routine_diffs:
+                click.echo(f"      [-] {rd.name} ({rd.language.value})")
+        else:
+            # Show routine changes
+            for rd in pd.routine_diffs:
+                if rd.change_type == ChangeType.UNCHANGED:
+                    continue
+                symbol = {"added": "+", "removed": "-", "modified": "~"}[rd.change_type.value]
+                click.echo(f"  [{symbol}] {rd.name} ({rd.language.value})", nl=False)
+                if rd.changes:
+                    click.echo(f" - {', '.join(rd.changes)}")
+                else:
+                    click.echo()
+
+            # Show local tag changes
+            local_tag_changes = [t for t in pd.tag_diffs if t.change_type != ChangeType.UNCHANGED]
+            if local_tag_changes:
+                click.echo("  Local Tags:")
+                for td in local_tag_changes:
+                    symbol = {"added": "+", "removed": "-", "modified": "~"}[td.change_type.value]
+                    click.echo(f"    [{symbol}] {td.name}", nl=False)
+                    if td.changes:
+                        click.echo(f" - {', '.join(td.changes)}")
+                    else:
+                        click.echo()
+
+        click.echo()
 
 
 @cli.command()

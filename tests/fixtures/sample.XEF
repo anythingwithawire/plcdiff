@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Exchange xmlns="http://www.schneider-electric.com/schema/xef">
+  <ContentHeader name="ConveyorControl" version="14.1" dateTime="2024-12-10T10:15:30">
+    <comment>Sample Schneider project for testing</comment>
+  </ContentHeader>
+  <processor type="M340" name="BMX_P34_2030"/>
+  <dataBlock>
+    <variables>
+      <variable name="System_Status" typeName="BOOL">
+        <comment>Overall system status</comment>
+      </variable>
+      <variable name="Conveyor_Speed" typeName="INT" value="100">
+        <comment>Conveyor speed in mm/s</comment>
+      </variable>
+      <variable name="Temperature_Sensors" typeName="REAL" dimensions="8">
+        <comment>Temperature sensor array</comment>
+      </variable>
+      <variable name="Motor_Running" typeName="BOOL">
+        <comment>Motor run status</comment>
+      </variable>
+    </variables>
+  </dataBlock>
+  <DFBType name="FB_MotorControl">
+    <comment>Motor control function block</comment>
+  </DFBType>
+  <DFBType name="FB_ConveyorLogic">
+    <comment>Conveyor control logic</comment>
+  </DFBType>
+  <DFBType name="FB_SafetyMonitor">
+    <comment>Safety monitoring block</comment>
+  </DFBType>
+  <program name="MainProgram">
+    <comment>Main control program</comment>
+    <variables>
+      <variable name="Local_Timer" typeName="TIME">
+        <comment>Local timing variable</comment>
+      </variable>
+    </variables>
+    <section name="Startup" language="ST">
+      <STSource><![CDATA[// Initialization code
+IF FirstScan THEN
+  System_Status := FALSE;
+  Conveyor_Speed := 100;
+END_IF;
+
+// Set initial conditions
+Motor_Running := FALSE;
+]]></STSource>
+    </section>
+    <section name="MainControl" language="LD">
+      <LDSource>
+        <network number="1" comment="Start/Stop Logic">
+          <contact name="Start_Button" type="NO"/>
+          <contact name="Stop_Button" type="NC"/>
+          <coil name="Motor_Running"/>
+        </network>
+        <network number="2" comment="Speed Control">
+          <contact name="Motor_Running" type="NO"/>
+          <coil name="Speed_Enable"/>
+        </network>
+        <network number="3" comment="Safety Interlock">
+          <contact name="E_Stop" type="NC"/>
+          <contact name="Guard_OK" type="NO"/>
+          <coil name="Safe_To_Run"/>
+        </network>
+        <network number="4" comment="Fault Detection">
+          <contact name="Overload" type="NO"/>
+          <coil name="Fault_Active"/>
+        </network>
+      </LDSource>
+    </section>
+    <section name="SafetyLogic" language="FBD">
+      <FBDSource>
+        <networkFBD number="1">
+          <functionBlock name="AND" instanceName="Safety_AND">
+            <pin name="IN1" type="BOOL"/>
+            <pin name="IN2" type="BOOL"/>
+            <pin name="OUT" type="BOOL"/>
+          </functionBlock>
+        </networkFBD>
+        <networkFBD number="2">
+          <functionBlock name="OR" instanceName="Fault_OR">
+            <pin name="IN1" type="BOOL"/>
+            <pin name="IN2" type="BOOL"/>
+            <pin name="OUT" type="BOOL"/>
+          </functionBlock>
+        </networkFBD>
+        <networkFBD number="3">
+          <functionBlock name="TON" instanceName="Delay_Timer">
+            <pin name="IN" type="BOOL"/>
+            <pin name="PT" type="TIME"/>
+            <pin name="Q" type="BOOL"/>
+            <pin name="ET" type="TIME"/>
+          </functionBlock>
+        </networkFBD>
+      </FBDSource>
+    </section>
+  </program>
+  <program name="DiagnosticsProgram">
+    <comment>Diagnostic monitoring</comment>
+    <section name="StatusMonitor" language="ST">
+      <STSource><![CDATA[// Monitor system status
+IF Motor_Running THEN
+  Runtime := Runtime + 1;
+END_IF;
+
+// Check for faults
+IF Temperature_Sensors[0] > 80.0 THEN
+  Overtemp_Alarm := TRUE;
+END_IF;
+]]></STSource>
+    </section>
+  </program>
+</Exchange>

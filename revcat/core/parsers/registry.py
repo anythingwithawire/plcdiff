@@ -4,6 +4,7 @@ from pathlib import Path
 
 from revcat.core.parsers.base import BaseParser, ParserError
 from revcat.core.parsers.l5x_parser import L5XParser
+from revcat.core.parsers.xef_parser import XEFParser
 
 
 class ParserRegistry:
@@ -19,6 +20,7 @@ class ParserRegistry:
     def _register_default_parsers(self):
         """Register built-in parsers."""
         self.register(L5XParser())
+        self.register(XEFParser())
 
     def register(self, parser: BaseParser):
         """Register a new parser."""

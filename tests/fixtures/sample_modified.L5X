@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="32.011" TargetName="SampleController" TargetType="1756-L83E">
+  <Controller Name="SampleController" LastModifiedDate="Mon Dec 10 16:45:00 2024">
+    <Description>Sample PLC project for testing - modified version</Description>
+    <AddOnInstructionDefinitions>
+      <AddOnInstructionDefinition Name="AOI_Motor">
+        <Parameters/>
+        <LocalTags/>
+        <Routines/>
+      </AddOnInstructionDefinition>
+      <AddOnInstructionDefinition Name="AOI_Valve">
+        <Parameters/>
+        <LocalTags/>
+        <Routines/>
+      </AddOnInstructionDefinition>
+      <AddOnInstructionDefinition Name="AOI_NewBlock">
+        <Parameters/>
+        <LocalTags/>
+        <Routines/>
+      </AddOnInstructionDefinition>
+    </AddOnInstructionDefinitions>
+    <Tags>
+      <Tag Name="System_Running" DataType="BOOL" Value="0">
+        <Description>System run status - updated description</Description>
+      </Tag>
+      <Tag Name="Motor_Speed" DataType="DINT" Value="1800">
+        <Description>Motor speed setpoint RPM</Description>
+      </Tag>
+      <Tag Name="Temperature_Array" DataType="REAL" Dimensions="12">
+        <Description>Temperature sensor readings - expanded</Description>
+      </Tag>
+      <Tag Name="New_Alarm_Status" DataType="BOOL" Value="0">
+        <Description>New alarm status tag</Description>
+      </Tag>
+    </Tags>
+    <Programs>
+      <Program Name="MainProgram">
+        <Description>Main control program - updated</Description>
+        <Tags>
+          <Tag Name="Local_Counter" DataType="DINT" Value="0">
+            <Description>Local program counter</Description>
+          </Tag>
+          <Tag Name="New_Local_Flag" DataType="BOOL" Value="0">
+            <Description>New local flag</Description>
+          </Tag>
+        </Tags>
+        <Routines>
+          <Routine Name="MainRoutine" Type="RLL">
+            <Description>Main ladder routine - modified</Description>
+            <RLLContent>
+              <Rung Number="0" Type="N">
+                <Comment>Start sequence logic - updated</Comment>
+                <Text>XIC(Start_Button)XIC(Safety_OK)OTE(System_Running);</Text>
+              </Rung>
+              <Rung Number="1" Type="N">
+                <Comment>Motor control</Comment>
+                <Text>XIC(System_Running)OTE(Motor_Run);</Text>
+              </Rung>
+              <Rung Number="2" Type="N">
+                <Comment>Safety interlock - enhanced</Comment>
+                <Text>XIC(E_Stop)[XIC(Guard_Closed),XIC(Pressure_OK),XIC(Temp_OK)]OTE(Safe_To_Run);</Text>
+              </Rung>
+              <Rung Number="3" Type="N">
+                <Comment>New alarm logic</Comment>
+                <Text>XIC(Fault_Active)OTE(Alarm_Output);</Text>
+              </Rung>
+            </RLLContent>
+          </Routine>
+          <Routine Name="Initialize" Type="ST">
+            <Description>Initialization routine - updated</Description>
+            <STContent>
+              <Line Number="0"><![CDATA[// Initialize system variables - v2]]></Line>
+              <Line Number="1"><![CDATA[Motor_Speed := 1800;]]></Line>
+              <Line Number="2"><![CDATA[System_Running := FALSE;]]></Line>
+              <Line Number="3"><![CDATA[New_Alarm_Status := FALSE;]]></Line>
+              <Line Number="4"><![CDATA[IF First_Scan THEN]]></Line>
+              <Line Number="5"><![CDATA[  Init_Complete := TRUE;]]></Line>
+              <Line Number="6"><![CDATA[  Log_Startup();]]></Line>
+              <Line Number="7"><![CDATA[END_IF;]]></Line>
+            </STContent>
+          </Routine>
+          <Routine Name="AlarmHandler" Type="ST">
+            <Description>New alarm handling routine</Description>
+            <STContent>
+              <Line Number="0"><![CDATA[// Handle alarms]]></Line>
+              <Line Number="1"><![CDATA[IF Fault_Active THEN]]></Line>
+              <Line Number="2"><![CDATA[  Alarm_Count := Alarm_Count + 1;]]></Line>
+              <Line Number="3"><![CDATA[END_IF;]]></Line>
+            </STContent>
+          </Routine>
+        </Routines>
+      </Program>
+      <Program Name="SafetyProgram">
+        <Description>Safety monitoring</Description>
+        <Tags/>
+        <Routines>
+          <Routine Name="SafetyCheck" Type="FBD">
+            <Description>Safety function block routine - enhanced</Description>
+            <FBDContent>
+              <Sheet Number="0">
+                <Block ID="0" Type="AND" X="100" Y="50">
+                  <Pin ID="1" Name="In1"/>
+                  <Pin ID="2" Name="In2"/>
+                  <Pin ID="3" Name="In3"/>
+                  <Pin ID="4" Name="Out"/>
+                </Block>
+              </Sheet>
+              <Sheet Number="1">
+                <Block ID="0" Type="OR" X="100" Y="50">
+                  <Pin ID="1" Name="In1"/>
+                  <Pin ID="2" Name="In2"/>
+                  <Pin ID="3" Name="Out"/>
+                </Block>
+              </Sheet>
+              <Sheet Number="2">
+                <Block ID="0" Type="NOT" X="100" Y="50">
+                  <Pin ID="1" Name="In"/>
+                  <Pin ID="2" Name="Out"/>
+                </Block>
+              </Sheet>
+            </FBDContent>
+          </Routine>
+        </Routines>
+      </Program>
+      <Program Name="DiagnosticsProgram">
+        <Description>New diagnostics program</Description>
+        <Tags/>
+        <Routines>
+          <Routine Name="LogStatus" Type="ST">
+            <Description>Status logging routine</Description>
+            <STContent>
+              <Line Number="0"><![CDATA[// Log system status]]></Line>
+              <Line Number="1"><![CDATA[StatusLog[LogIndex] := System_Running;]]></Line>
+              <Line Number="2"><![CDATA[LogIndex := LogIndex + 1;]]></Line>
+            </STContent>
+          </Routine>
+        </Routines>
+      </Program>
+    </Programs>
+    <Tasks>
+      <Task Name="MainTask" Type="CONTINUOUS">
+        <ScheduledPrograms>
+          <ScheduledProgram Name="MainProgram"/>
+          <ScheduledProgram Name="SafetyProgram"/>
+          <ScheduledProgram Name="DiagnosticsProgram"/>
+        </ScheduledPrograms>
+      </Task>
+    </Tasks>
+  </Controller>
+</RSLogix5000Content>
